@@ -1,0 +1,82 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+import glob
+import warnings
+from dataloading import BirdCallAnalyzer
+
+# Initialize analyzer
+analyzer = BirdCallAnalyzer()
+
+# Load data
+data = analyzer.load_data()
+
+# Fig 3: Mean alarm counts, non-alarm counts, background counts across all time segments
+
+fig, axes = plt.subplots(1,3, figsize = (18, 6)) # to plot 3 side by side bar charts
+
+metrics = ["mean_alarm_count", "mean_non_alarm_count", "mean_background_count"]
+titles = ["Mean Alarm Count", "Mean Non Alarm Count", "Mean Background Count"]
+
+for i, (metric, title) in enumerate(zip(metrics, titles)):
+    site_model_means = data.groupby(['site', 'model'])[metric].mean().reset_index()
+
+    sns.barplot(data = site_model_means, x = 'site', y = metric, hue = 'model' , ax = axes[i]) 
+    axes[i].set_title(f'{title} by Site and Model')
+    axes[i].set_xlabel('Site')
+    axes[i].set_ylabel(title)
+    axes[i].tick_params(axis='x', rotation=45)
+    axes[i].legend(title='Model')
+
+plt.tight_layout()
+analyzer.save_plot(fig, '03_spatial_barplots_means.png')
+
+# Fig 4: Mean alarm counts, non-alarm counts, background counts by daily counts
+
+fig, axes = plt.subplots(1,3, figsize = (18, 6))
+daily_totals = data.groupby(['date', 'site', 'model'])[metrics].sum().reset_index()
+
+for i, (metric, title) in enumerate(zip(metrics, titles)):
+    site_model_daily_means = daily_totals.groupby(['site', 'model'])[metric].mean().reset_index()
+
+    sns.barplot(data = site_model_daily_means, x = 'site', y = metric, hue = 'model', ax = axes[i])
+    axes[i]. set_title(f'{title} by site and model')
+    axes[i].set_xlabel('Site')
+    axes[i].set_ylabel(title)
+    axes[i].tick_params(axis = 'x', rotation = 45)
+    axes[i].legend(title = 'Model')
+
+plt.tight_layout()
+analyzer.save_plot(fig, '04_daily_mean_barplots.png')
+
+# Fig 4: Distribution of counts in each site 
+
+fig, axes = plt.subplots(3,3, figsize=(18, 15))
+
+for i, metric in enumerate(metrics):
+    for j, site in enumerate(sorted(data['site'].unique())):
+        site_data = data[data['site'] == site]
+
+        sns.boxplot(data = site_data, x = "model", y = metric, ax = axes[i, j])
+        axes[i, j].set_title(f'{titles[i]} - {site}')
+        axes[i, j].set_xlabel('Model')
+        axes[i, j].set_ylabel(titles[i])
+
+plt.tight_layout()
+analyzer.save_plot(fig, '05_spatial_boxplots_distributions.png')
+
+# Fig 5: Average alarm, non alarm, alarm count heatmaps across each time segment
+
+fig, axes = plt.subplots(1,3, figsize = (18, 6))
+
+for i, (metric, title) in enumerate(zip(metrics, titles)):
+    pivot_data = data.groupby(['site', 'model'])[metric].mean().unstack()
+
+    sns.heatmap(pivot_data, annot=True, fmt = '.1f', cmap = 'viridis', ax = axes[i])
+    axes[i].set_title(f'{title} Heatmap: Site vs Model')
+    axes[i].set_xlabel('Model')
+    axes[i].set_ylabel('Site')
+plt.tight_layout()
+analyzer.save_plot(fig, '06_average_alarm_non_background_heatmpa')
